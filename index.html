@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SubahKhabar-AI | Email Box</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 20px 12px; background: #eef1f7; color: #1b2233;
+    font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; }
+  .card {
+    background: #fff; border-radius: 18px; padding: 22px 22px;
+    box-shadow: 0 6px 24px rgba(26, 42, 108, .10);
+  }
+  .hero {
+    background: linear-gradient(135deg, #1a2a6c, #2a4bb5);
+    border-radius: 18px; padding: 24px 22px; color: #fff; margin-bottom: 14px;
+  }
+  .hero h1 { margin: 0; font-size: 24px; letter-spacing: .5px; }
+  .hero h1 span { color: #ffcf3f; }
+  .hero p { margin: 8px 0 0; font-size: 14px; opacity: .92; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  input[type=email], input[type=password], input[type=text] {
+    width: 100%; padding: 12px 13px; font-size: 15px;
+    border: 1px solid #cbd3e4; border-radius: 10px; background: #fbfcff;
+  }
+  input:focus { outline: 2px solid #2a4bb5; border-color: #2a4bb5; }
+  .row { display: flex; gap: 8px; margin-top: 8px; }
+  .row input { flex: 1; }
+  button {
+    border: 0; border-radius: 10px; padding: 12px 16px; font-size: 15px;
+    font-weight: 700; cursor: pointer; background: #2a4bb5; color: #fff;
+  }
+  button:hover { background: #1a2a6c; }
+  button.ghost { background: #e7ebf5; color: #1a2a6c; }
+  button.ghost:hover { background: #d6dcec; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .muted { color: #6c768f; font-size: 12px; line-height: 1.6; }
+  .status {
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+    font-size: 13px; display: none;
+  }
+  .status.ok { display: block; background: #e6f7ec; color: #15613a; border: 1px solid #b7e6c8; }
+  .status.err { display: block; background: #fdecec; color: #8a1f1f; border: 1px solid #f3c4c4; }
+  .status.info { display: block; background: #eef2fb; color: #26386f; border: 1px solid #ccd6ef; }
+  .list { margin-top: 16px; }
+  .item {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid #e2e7f2; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px;
+  }
+  .item .email { flex: 1; font-size: 14px; word-break: break-all; }
+  .item .tag {
+    font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 999px;
+    background: #e6f7ec; color: #15613a;
+  }
+  .item.off .email { text-decoration: line-through; color: #98a0b5; }
+  .item.off .tag { background: #eceff6; color: #77809a; }
+  .item button { padding: 8px 12px; font-size: 13px; }
+  .item .del { background: #fdecec; color: #a12424; }
+  .item .del:hover { background: #f7d5d5; }
+  .sep { height: 1px; background: #e6eaf3; margin: 18px 0; }
+  .count { font-size: 13px; color: #26386f; font-weight: 600; }
+  .hide { display: none; }
+  details summary { cursor: pointer; font-size: 13px; font-weight: 700; color: #26386f; }
+  .steps { font-size: 12px; color: #556080; line-height: 1.7; padding-left: 18px; }
+  code { background: #eef1f7; padding: 1px 5px; border-radius: 5px; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>SubahKhabar<span>-AI</span></h1>
+    <p>Email Box &bull; jiski email yahan daaloge, use bhi roz khabrein jayengi</p>
+  </div>
+
+  <div class="card">
+    <h2>Setup (sirf ek baar)</h2>
+    <p class="muted" style="margin:0 0 10px">
+      Is page ko chalane ke liye aapka GitHub token chahiye. Token sirf aapke
+      browser mein safe rehta hai (kisi server par nahi jaata).
+    </p>
+    <details>
+      <summary>Token kaise banayein (2 minute)</summary>
+      <ol class="steps">
+        <li>Ye link kholo: <a href="https://github.com/settings/tokens/new?scopes=repo&description=SubahKhabar-Email-Box" target="_blank" rel="noopener">github.com/settings/tokens/new</a></li>
+        <li><b>Note</b> mein likho: <code>SubahKhabar-Email-Box</code></li>
+        <li><b>Expiration</b>: jitna chaho (jaise 90 days)</li>
+        <li><b>Scopes</b> mein sirf <code>repo</code> tick karo</li>
+        <li><b>Generate token</b> dabao aur <code>ghp_...</code> copy karo</li>
+        <li>Neeche box mein paste karke <b>Save</b> dabao</li>
+      </ol>
+    </details>
+
+    <div style="margin-top:12px">
+      <label for="token">GitHub Token</label>
+      <div class="row">
+        <input id="token" type="password" placeholder="ghp_..." autocomplete="off" />
+        <button id="saveToken" class="ghost">Save</button>
+      </div>
+      <p class="muted" style="margin:6px 0 0">
+        Sirf is browser mein save hota hai. Kabhi kisi ke saath share na karo.
+        Token revoke karne ke liye: <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a>
+      </p>
+    </div>
+
+    <div class="sep"></div>
+
+    <h2>Nayi email add karo</h2>
+    <div class="row">
+      <input id="newEmail" type="email" placeholder="dost@gmail.com" autocomplete="off" />
+      <button id="addBtn">Add</button>
+    </div>
+    <div id="status" class="status"></div>
+
+    <div class="sep"></div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+      <span id="count" class="count">0 subscribers</span>
+      <button id="refresh" class="ghost">Refresh</button>
+    </div>
+    <div id="list" class="list"></div>
+    <p class="muted" id="emptyNote" style="margin-top:8px">
+      Abhi koi email add nahi ki. Jiski email add karoge, use roz subah aur shaam
+      ki khabrein chali jayengi.
+    </p>
+
+    <div class="sep"></div>
+    <p class="muted" style="margin:0">
+      Note: aapki apni email (jo GitHub Secret <code>RECEIVER_EMAIL</code> mein
+      hai) hamesha email paati hai. Yahan add ki gayi emails uske saath hi
+      jayengi. Delete karne par uski emails turant band ho jaayengi.
+    </p>
+  </div>
+
+  <p class="muted" style="text-align:center;margin-top:14px">
+    Khabrein: Bhai Lakhvinder Singh
+  </p>
+</div>
+
+<script>
+const OWNER = "lakh45vinder4679-cpu";
+const REPO = "subahkhabar-ai";
+const PATH = "subscribers.json";
+const BRANCH = "main";
+const API = "https://api.github.com/repos/" + OWNER + "/" + REPO + "/contents/" + PATH;
+const TOKEN_KEY = "subahkhabar_gh_token";
+
+const $ = (id) => document.getElementById(id);
+
+function getToken() { return localStorage.getItem(TOKEN_KEY) || ""; }
+function setStatus(msg, kind) {
+  const el = $("status");
+  el.className = "status " + (kind || "info");
+  el.textContent = msg;
+  if (!msg) el.className = "status";
+}
+
+function b64encodeUtf8(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = "";
+  bytes.forEach(function (b) { bin += String.fromCharCode(b); });
+  return btoa(bin);
+}
+function b64decodeUtf8(b64) {
+  const bin = atob(String(b64).replace(/\s/g, ""));
+  const bytes = Uint8Array.from(bin, function (c) { return c.charCodeAt(0); });
+  return new TextDecoder().decode(bytes);
+}
+function validEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+async function ghHeaders() {
+  return {
+    Authorization: "Bearer " + getToken(),
+    Accept: "application/vnd.github+json",
+    "Content-Type": "application/json"
+  };
+}
+
+async function loadFile() {
+  const res = await fetch(API + "?ref=" + BRANCH + "&t=" + Date.now(), { headers: await ghHeaders() });
+  if (res.status === 404) return { data: { subscribers: [] }, sha: null };
+  if (res.status === 401) throw new Error("Token galat ya expire ho gaya. Naya token daalo.");
+  if (res.status === 403) throw new Error("Token mein 'repo' permission nahi hai. Naya token banao.");
+  if (!res.ok) throw new Error("Load fail (" + res.status + ")");
+  const json = await res.json();
+  let data = {};
+  try { data = JSON.parse(b64decodeUtf8(json.content) || "{}"); } catch (e) { data = {}; }
+  if (!data || typeof data !== "object") data = {};
+  if (!Array.isArray(data.subscribers)) data.subscribers = [];
+  return { data: data, sha: json.sha };
+}
+
+async function saveFile(data, sha, message) {
+  const body = {
+    message: message,
+    content: b64encodeUtf8(JSON.stringify(data, null, 2) + "\n"),
+    branch: BRANCH
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(API, { method: "PUT", headers: await ghHeaders(), body: JSON.stringify(body) });
+  if (res.ok) return await res.json();
+  const text = await res.text();
+  // Someone else changed the file - refresh and retry once.
+  if (res.status === 409 || res.status === 422) {
+    const fresh = await loadFile();
+    const retry = { message: message, content: b64encodeUtf8(JSON.stringify(data, null, 2) + "\n"), branch: BRANCH };
+    if (fresh.sha) retry.sha = fresh.sha;
+    const res2 = await fetch(API, { method: "PUT", headers: await ghHeaders(), body: JSON.stringify(retry) });
+    if (res2.ok) return await res2.json();
+    throw new Error("Save fail (" + res2.status + ")");
+  }
+  throw new Error("Save fail (" + res.status + ") " + text.slice(0, 120));
+}
+
+let current = { data: { subscribers: [] }, sha: null };
+
+function render() {
+  const list = $("list");
+  const subs = current.data.subscribers;
+  list.innerHTML = "";
+  $("count").textContent = subs.length + " subscriber" + (subs.length === 1 ? "" : "s");
+  $("emptyNote").classList.toggle("hide", subs.length > 0);
+
+  subs.forEach(function (sub, index) {
+    const email = typeof sub === "string" ? sub : (sub.email || "");
+    const active = typeof sub === "string" ? true : (sub.active !== false);
+
+    const row = document.createElement("div");
+    row.className = "item" + (active ? "" : " off");
+
+    const span = document.createElement("span");
+    span.className = "email";
+    span.textContent = email;
+
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = active ? "Active" : "Paused";
+
+    const toggle = document.createElement("button");
+    toggle.className = "ghost";
+    toggle.textContent = active ? "Pause" : "Resume";
+    toggle.onclick = function () { updateSub(index, { email: email, active: !active }); };
+
+    const del = document.createElement("button");
+    del.className = "del";
+    del.textContent = "Delete";
+    del.onclick = function () { removeSub(index, email); };
+
+    row.appendChild(span);
+    row.appendChild(tag);
+    row.appendChild(toggle);
+    row.appendChild(del);
+    list.appendChild(row);
+  });
+}
+
+async function refresh() {
+  if (!getToken()) {
+    setStatus("Pehle upar apna GitHub token save karo.", "info");
+    return;
+  }
+  setStatus("Load ho raha hai...", "info");
+  try {
+    current = await loadFile();
+    render();
+    setStatus("List load ho gayi.", "ok");
+  } catch (e) {
+    setStatus(e.message, "err");
+  }
+}
+
+function normalize(sub) {
+  return typeof sub === "string" ? { email: sub } : sub;
+}
+
+async function persist(message) {
+  const result = await saveFile(current.data, current.sha, message);
+  if (result && result.content && result.content.sha) current.sha = result.content.sha;
+  render();
+}
+
+async function addEmail() {
+  const input = $("newEmail");
+  const email = input.value.trim();
+  if (!validEmail(email)) {
+    setStatus("Sahi email address likho (jaise naam@gmail.com).", "err");
+    return;
+  }
+  if (!getToken()) {
+    setStatus("Pehle upar apna GitHub token save karo.", "err");
+    return;
+  }
+  if (current.data.subscribers.some(function (s) {
+    return (typeof s === "string" ? s : s.email || "").toLowerCase() === email.toLowerCase();
+  })) {
+    setStatus("Ye email pehle se list mein hai.", "err");
+    return;
+  }
+  setStatus("Add ho raha hai...", "info");
+  current.data.subscribers.push({ email: email, added: new Date().toISOString().slice(0, 10) });
+  try {
+    await persist("feat: add subscriber " + email);
+    input.value = "";
+    setStatus(email + " add ho gayi - ab ise bhi khabrein jayengi.", "ok");
+  } catch (e) {
+    current.data.subscribers.pop();
+    render();
+    setStatus(e.message, "err");
+  }
+}
+
+async function removeSub(index, email) {
+  if (!confirm(email + " ko hata dena hai? Iski emails band ho jaayengi.")) return;
+  setStatus("Delete ho raha hai...", "info");
+  const backup = current.data.subscribers.slice();
+  current.data.subscribers.splice(index, 1);
+  try {
+    await persist("chore: remove subscriber " + email);
+    setStatus(email + " delete ho gayi.", "ok");
+  } catch (e) {
+    current.data.subscribers = backup;
+    render();
+    setStatus(e.message, "err");
+  }
+}
+
+async function updateSub(index, value) {
+  const backup = current.data.subscribers[index];
+  setStatus("Update ho raha hai...", "info");
+  current.data.subscribers[index] = value;
+  try {
+    await persist("chore: update subscriber " + value.email);
+    setStatus("Update ho gaya.", "ok");
+  } catch (e) {
+    current.data.subscribers[index] = backup;
+    render();
+    setStatus(e.message, "err");
+  }
+}
+
+$("saveToken").onclick = function () {
+  const value = $("token").value.trim();
+  if (!value) {
+    localStorage.removeItem(TOKEN_KEY);
+    setStatus("Token hata diya.", "info");
+    return;
+  }
+  localStorage.setItem(TOKEN_KEY, value);
+  $("token").value = "";
+  setStatus("Token save ho gaya.", "ok");
+  refresh();
+};
+$("addBtn").onclick = addEmail;
+$("newEmail").addEventListener("keydown", function (e) { if (e.key === "Enter") addEmail(); });
+$("refresh").onclick = refresh;
+
+// On load
+if (getToken()) {
+  setStatus("Token mil gaya, list load kar raha hoon...", "info");
+  refresh();
+} else {
+  setStatus("Pehle upar apna GitHub token save karo.", "info");
+}
+</script>
+</body>
+</html>
