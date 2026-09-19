@@ -24,11 +24,12 @@
   .hero p { margin: 8px 0 0; font-size: 14px; opacity: .92; }
   h2 { font-size: 16px; margin: 0 0 12px; }
   label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
-  input[type=email], input[type=password], input[type=text] {
+  input[type=email], input[type=password], input[type=text], textarea {
     width: 100%; padding: 12px 13px; font-size: 15px;
     border: 1px solid #cbd3e4; border-radius: 10px; background: #fbfcff;
+    font-family: inherit; resize: vertical;
   }
-  input:focus { outline: 2px solid #2a4bb5; border-color: #2a4bb5; }
+  input:focus, textarea:focus { outline: 2px solid #2a4bb5; border-color: #2a4bb5; }
   .row { display: flex; gap: 8px; margin-top: 8px; }
   .row input { flex: 1; }
   button {
@@ -110,10 +111,30 @@
 
     <div class="sep"></div>
 
-    <h2>Nayi email add karo</h2>
+    <details>
+      <summary>Doston ko bhejne ke liye message (copy karo)</summary>
+      <p class="muted" style="margin:8px 0">
+        Doston ko GitHub kholne ki zaroorat nahi. Bas ye message unhe bhej do -
+        wo apni email bhejenge, aap yahan add kar doge, aur unhe bhi roz news
+        aane lagegi.
+      </p>
+      <textarea id="shareMsg" rows="5" readonly>Bhai, main roz subah-shaam news wali email bhejta hoon (SubahKhabar-AI). Agar tumhe bhi chahiye to apni email id bhej do, main add kar dunga. Free hai - roz 2 email: subah 7 baje aur shaam 6:50 par.</textarea>
+      <div class="row">
+        <button id="copyMsg" class="ghost">Copy message</button>
+      </div>
+    </details>
+
+    <div class="sep"></div>
+
+    <h2>Email add karo</h2>
+    <p class="muted" style="margin:0 0 8px">
+      Ek ya kai emails ek saath daal sakte ho - comma, space ya nayi line se
+      alag karo. Jaise: <code>ravi@gmail.com, neha@gmail.com</code>
+    </p>
+    <textarea id="newEmail" rows="3" placeholder="dost1@gmail.com&#10;dost2@gmail.com, dost3@gmail.com" autocomplete="off"></textarea>
     <div class="row">
-      <input id="newEmail" type="email" placeholder="dost@gmail.com" autocomplete="off" />
       <button id="addBtn">Add</button>
+      <button id="clearBtn" class="ghost">Clear</button>
     </div>
     <div id="status" class="status"></div>
 
@@ -288,29 +309,47 @@ async function persist(message) {
 
 async function addEmail() {
   const input = $("newEmail");
-  const email = input.value.trim();
-  if (!validEmail(email)) {
-    setStatus("Sahi email address likho (jaise naam@gmail.com).", "err");
+  const parts = input.value.split(/[\s,;]+/).filter(function (p) { return p.length > 0; });
+  if (!parts.length) {
+    setStatus("Kam se kam ek email likho (jaise naam@gmail.com).", "err");
     return;
   }
   if (!getToken()) {
     setStatus("Pehle upar apna GitHub token save karo.", "err");
     return;
   }
-  if (current.data.subscribers.some(function (s) {
-    return (typeof s === "string" ? s : s.email || "").toLowerCase() === email.toLowerCase();
-  })) {
-    setStatus("Ye email pehle se list mein hai.", "err");
+  const invalid = parts.filter(function (p) { return !validEmail(p); });
+  const existing = current.data.subscribers.map(function (s) {
+    return (typeof s === "string" ? s : s.email || "").toLowerCase();
+  });
+  const seen = {};
+  existing.forEach(function (e) { seen[e] = true; });
+  const toAdd = [];
+  const skipped = [];
+  parts.forEach(function (p) {
+    if (!validEmail(p)) return;
+    const key = p.toLowerCase();
+    if (seen[key]) { skipped.push(p); return; }
+    seen[key] = true;
+    toAdd.push(p);
+  });
+  if (!toAdd.length) {
+    setStatus("Ye email" + (skipped.length > 1 ? "s" : "") + " pehle se list mein hai" + (skipped.length > 1 ? "n" : "") + ".", "err");
     return;
   }
   setStatus("Add ho raha hai...", "info");
-  current.data.subscribers.push({ email: email, added: new Date().toISOString().slice(0, 10) });
+  const today = new Date().toISOString().slice(0, 10);
+  toAdd.forEach(function (e) { current.data.subscribers.push({ email: e, added: today }); });
   try {
-    await persist("feat: add subscriber " + email);
+    await persist("feat: add " + toAdd.length + " subscriber" + (toAdd.length > 1 ? "s" : ""));
     input.value = "";
-    setStatus(email + " add ho gayi - ab ise bhi khabrein jayengi.", "ok");
+    const msg = toAdd.length + " email add ho gayi - ab inhe bhi khabrein jayengi.";
+    const extra = [];
+    if (skipped.length) extra.push(skipped.length + " pehle se thi");
+    if (invalid.length) extra.push(invalid.length + " galat thi");
+    setStatus(msg + (extra.length ? " (" + extra.join(", ") + ")" : ""), "ok");
   } catch (e) {
-    current.data.subscribers.pop();
+    current.data.subscribers.splice(current.data.subscribers.length - toAdd.length, toAdd.length);
     render();
     setStatus(e.message, "err");
   }
@@ -358,7 +397,25 @@ $("saveToken").onclick = function () {
   refresh();
 };
 $("addBtn").onclick = addEmail;
-$("newEmail").addEventListener("keydown", function (e) { if (e.key === "Enter") addEmail(); });
+$("newEmail").addEventListener("keydown", function (e) {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") addEmail();
+});
+$("clearBtn").onclick = function () {
+  $("newEmail").value = "";
+  $("newEmail").focus();
+  setStatus("", "info");
+};
+$("copyMsg").onclick = function () {
+  const box = $("shareMsg");
+  const done = function () { setStatus("Message copy ho gaya - ab doston ko bhej do.", "ok"); };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(box.value).then(done, function () { box.select(); document.execCommand("copy"); done(); });
+  } else {
+    box.select();
+    document.execCommand("copy");
+    done();
+  }
+};
 $("refresh").onclick = refresh;
 
 // On load
