@@ -1,0 +1,138 @@
+name: SubahKhabar-AI Daily Briefing
+
+on:
+  schedule:
+    # WHY SO MANY ENTRIES?
+    # GitHub's own cron is best-effort and its delay changes every day (we
+    # measured 2.5 to 5 hours late). Instead of trusting one slot, we schedule
+    # many CHEAP attempts spread over the hours before each edition, and a
+    # delivery-window guard decides which one actually sends. The first run
+    # that lands inside the window sends the mail; later ones are skipped by
+    # the once-per-day state file. This needs no external account.
+    #
+    # MORNING would like to send 06:52 IST; window is 05:30-14:00 IST.
+    - cron: "0 20 * * *"
+    - cron: "50 20 * * *"
+    - cron: "40 21 * * *"
+    - cron: "30 22 * * *"
+    - cron: "20 23 * * *"
+    - cron: "10 0 * * *"
+    - cron: "0 1 * * *"
+    - cron: "22 1 * * *"
+    - cron: "40 1 * * *"
+    - cron: "55 1 * * *"
+    # EVENING would like to send 18:45 IST; window is 17:00-23:59 IST.
+    - cron: "0 8 * * *"
+    - cron: "50 8 * * *"
+    - cron: "40 9 * * *"
+    - cron: "30 10 * * *"
+    - cron: "20 11 * * *"
+    - cron: "10 12 * * *"
+    - cron: "0 13 * * *"
+    - cron: "20 13 * * *"
+    - cron: "40 13 * * *"
+    - cron: "55 13 * * *"
+
+  # Manual run from the Actions tab (always sends, window guard is bypassed).
+  workflow_dispatch:
+    inputs:
+      edition:
+        description: "Which edition to send"
+        required: true
+        default: morning
+        type: choice
+        options:
+          - morning
+          - evening
+
+  # Optional on-time trigger for an external scheduler (cron-job.org etc).
+  repository_dispatch:
+    types: [send-morning, send-evening]
+
+run-name: >-
+  SubahKhabar-AI (${{ github.event.client_payload.edition || github.event.inputs.edition || (github.event.action == 'send-evening' && 'evening') || (contains(github.event.schedule, '13') && 'evening') || 'morning' }})
+
+concurrency:
+  group: subahkhabar-ai-${{ github.event.client_payload.edition || github.event.inputs.edition || (github.event.action == 'send-evening' && 'evening') || (contains(github.event.schedule, '13') && 'evening') || 'morning' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write   # needed to commit the "already sent" state file
+
+jobs:
+  send-briefing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EDITION: ${{ github.event.client_payload.edition || github.event.inputs.edition || (github.event.action == 'send-evening' && 'evening') || (contains(github.event.schedule, '13') && 'evening') || 'morning' }}
+    steps:
+      # Runs first and needs no checkout, so an out-of-window attempt costs
+      # only a couple of seconds instead of a full dependency install.
+      - name: Delivery window check
+        id: window
+        env:
+          EDITION: ${{ env.EDITION }}
+        run: |
+          H=$(TZ=Asia/Kolkata date +%-H)
+          M=$(TZ=Asia/Kolkata date +%M)
+          NOW=$((H * 60 + 10#$M))
+          IN=false
+          if [ "$EDITION" = "evening" ]; then
+            if [ "$NOW" -ge 1020 ] && [ "$NOW" -le 1439 ]; then IN=true; fi
+          else
+            if [ "$NOW" -ge 330 ] && [ "$NOW" -le 840 ]; then IN=true; fi
+          fi
+          echo "IST now: $(TZ=Asia/Kolkata date '+%H:%M') | edition=$EDITION | in_window=$IN"
+          echo "in_window=$IN" >> "$GITHUB_OUTPUT"
+          if [ "$IN" = "false" ]; then
+            echo "Outside the delivery window - skipping this attempt (cheap no-op)."
+          fi
+
+      - name: Checkout repository
+        if: steps.window.outputs.in_window == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        if: steps.window.outputs.in_window == 'true' || github.event_name == 'workflow_dispatch'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        if: steps.window.outputs.in_window == 'true' || github.event_name == 'workflow_dispatch'
+        run: pip install -r requirements.txt
+
+      - name: Send briefing
+        if: steps.window.outputs.in_window == 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SENDER_EMAIL: ${{ secrets.SENDER_EMAIL }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECEIVER_EMAIL: ${{ secrets.RECEIVER_EMAIL }}
+          CITY: ${{ vars.CITY || 'Delhi' }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
+          NEWS_FRESH_HOURS: ${{ vars.NEWS_FRESH_HOURS || '36' }}
+          EDITION: ${{ env.EDITION }}
+        run: python main.py
+
+      - name: Remember what was sent
+        if: always() && steps.window.outputs.in_window == 'true' && (github.event_name == 'schedule' || github.event_name == 'repository_dispatch')
+        env:
+          EDITION: ${{ env.EDITION }}
+        run: |
+          if [ ! -f .subahkhabar-state.json ]; then
+            echo "No state file - nothing to remember."
+            exit 0
+          fi
+          if ! git status --porcelain -- .subahkhabar-state.json | grep -q .; then
+            echo "State unchanged - attempt did not send, or already recorded."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .subahkhabar-state.json
+          git commit -m "chore: mark ${EDITION} briefing sent"
+          # The Email Box may have pushed a subscriber change meanwhile.
+          git pull --rebase origin main || true
+          git push
